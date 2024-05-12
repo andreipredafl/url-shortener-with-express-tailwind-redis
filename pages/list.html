@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>List of Shortened URLs and Stats</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+            }
+            li {
+                margin-bottom: 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>List of Shortened URLs and Their Stats</h1>
+        <ul id="urlList"></ul>
+
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                fetch("/stats")
+                    .then((response) => response.json())
+                    .then((urls) => {
+                        const listElement = document.getElementById("urlList");
+                        urls.forEach((urlData) => {
+                            const item = document.createElement("li");
+                            const statsLink = `${window.location.origin}/url/${urlData.shortId}/stats`;
+                            item.innerHTML = `
+                                Short URL: <a href="${urlData.originalUrl}" target="_blank">/${urlData.shortId}</a> <br>
+                                Original URL: ${urlData.originalUrl} <br>
+                                Visits: ${urlData.visits} <br>
+                                Created At: ${new Date(parseInt(urlData.created)).toLocaleString()} <br>
+                            `;
+
+                            listElement.appendChild(item);
+                        });
+                    })
+                    .catch((error) => console.error("Error:", error));
+            });
+        </script>
+    </body>
+</html>
