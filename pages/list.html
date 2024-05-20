@@ -4,18 +4,38 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>List of Shortened URLs and Stats</title>
-        <style>
-            body {
-                font-family: Arial, sans-serif;
-            }
-            li {
-                margin-bottom: 10px;
-            }
-        </style>
+        <script src="https://cdn.tailwindcss.com"></script>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
-    <body>
-        <h1>List of Shortened URLs and Their Stats</h1>
-        <ul id="urlList"></ul>
+    <body class="bg-gray-100 flex flex-col min-h-screen">
+        <header class="w-full bg-gradient-to-r from-blue-500 to-teal-500 p-4">
+            <nav class="container mx-auto flex justify-between items-center">
+                <div>
+                    <a href="/" class="text-white text-lg font-bold">URL Shortener</a>
+                </div>
+                <div>
+                    <a href="/list" class="text-white hover:text-gray-200 mr-4">Shorten list history</a>
+                </div>
+            </nav>
+        </header>
+
+        <section class="w-full flex flex-col items-center justify-center bg-gradient-to-r from-blue-100 to-teal-100 flex-grow py-16">
+            <h1 class="text-3xl font-bold text-center text-gray-700 mb-6">List of Shortened URLs and Their Stats</h1>
+
+            <div class="bg-white shadow-lg rounded-lg p-6 max-w-4xl w-full mb-8">
+                <ul id="urlList" class="space-y-4"></ul>
+            </div>
+
+            <!-- Chart Container -->
+            <div class="bg-white shadow-lg rounded-lg p-6 max-w-4xl w-full mb-8">
+                <canvas id="urlStatsChart"></canvas>
+            </div>
+
+            <!-- Second Chart Container -->
+            <div class="bg-white shadow-lg rounded-lg p-6 max-w-4xl w-full">
+                <canvas id="urlVisitsOverTimeChart"></canvas>
+            </div>
+        </section>
 
         <script>
             document.addEventListener("DOMContentLoaded", function () {
@@ -23,21 +43,103 @@
                     .then((response) => response.json())
                     .then((urls) => {
                         const listElement = document.getElementById("urlList");
+                        const labels = [];
+                        const visits = [];
+                        const visitsOverTime = {};
+
                         urls.forEach((urlData) => {
                             const item = document.createElement("li");
-                            const statsLink = `${window.location.origin}/url/${urlData.shortId}/stats`;
+                            item.classList.add("bg-gray-100", "p-4", "rounded-lg", "shadow-sm");
+
                             item.innerHTML = `
-                                Short URL: <a href="${urlData.originalUrl}" target="_blank">/${urlData.shortId}</a> <br>
-                                Original URL: ${urlData.originalUrl} <br>
-                                Visits: ${urlData.visits} <br>
-                                Created At: ${new Date(parseInt(urlData.created)).toLocaleString()} <br>
+                                <p><strong>Short URL:</strong> <a href="${urlData.originalUrl}" target="_blank" class="text-blue-500 underline">https://${urlData.shortId}</a></p>
+                                <p><strong>Original URL:</strong> ${urlData.originalUrl}</p>
+                                <p><strong>Visits:</strong> ${urlData.visits}</p>
+                                <p><strong>Created At:</strong> ${new Date(parseInt(urlData.created)).toLocaleString()}</p>
+                                <div class="flex justify-center mt-4">
+                                    <button class="bg-blue-500 text-white px-4 py-2 rounded-full mr-2 hover:bg-blue-600 transition duration-300" onclick="shareOnFacebook('${urlData.originalUrl}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M22.675 0h-21.35C.595 0 0 .595 0 1.326v21.348C0 23.405.595 24 1.326 24h11.495v-9.294H9.428v-3.622h3.393V8.412c0-3.362 2.053-5.189 5.049-5.189 1.437 0 2.675.107 3.032.155v3.517l-2.083.001c-1.636 0-1.953.777-1.953 1.916v2.512h3.902l-.509 3.622h-3.393V24h6.653c.73 0 1.325-.595 1.325-1.326V1.326C24 .595 23.405 0 22.675 0z"/></svg>
+                                    </button>
+                                    <button class="bg-blue-400 text-white px-4 py-2 rounded-full mr-2 hover:bg-blue-500 transition duration-300" onclick="shareOnTwitter('${urlData.originalUrl}')">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="currentColor" viewBox="0 0 24 24"><path d="M23.954 4.569c-.885.389-1.83.654-2.825.775 1.014-.611 1.794-1.574 2.163-2.724-.951.555-2.005.959-3.127 1.184-.897-.959-2.173-1.559-3.591-1.559-2.717 0-4.92 2.203-4.92 4.917 0 .39.044.765.127 1.124-4.087-.205-7.719-2.165-10.148-5.144-.422.724-.664 1.562-.664 2.457 0 1.697.863 3.192 2.173 4.068-.803-.026-1.56-.246-2.228-.616v.061c0 2.367 1.684 4.342 3.918 4.794-.41.111-.84.171-1.285.171-.314 0-.615-.03-.916-.086.631 1.953 2.445 3.377 4.6 3.417-1.68 1.319-3.808 2.105-6.102 2.105-.39 0-.779-.023-1.17-.067 2.18 1.394 4.768 2.21 7.548 2.21 9.057 0 14-7.496 14-13.986 0-.209 0-.42-.015-.63.961-.689 1.8-1.56 2.462-2.548l-.047-.02z"/></svg>
+                                    </button>
+                                </div>
                             `;
 
                             listElement.appendChild(item);
+                            labels.push(`/${urlData.shortId}`);
+                            visits.push(urlData.visits);
+
+                            const createdDate = new Date(parseInt(urlData.created)).toLocaleDateString();
+                            if (!visitsOverTime[createdDate]) {
+                                visitsOverTime[createdDate] = 0;
+                            }
+                            visitsOverTime[createdDate] += urlData.visits;
+                        });
+
+                        // Create first chart
+                        const ctx = document.getElementById("urlStatsChart").getContext("2d");
+                        new Chart(ctx, {
+                            type: "bar",
+                            data: {
+                                labels: labels,
+                                datasets: [
+                                    {
+                                        label: "Number of Visits",
+                                        data: visits,
+                                        backgroundColor: "rgba(54, 162, 235, 0.2)",
+                                        borderColor: "rgba(54, 162, 235, 1)",
+                                        borderWidth: 1,
+                                    },
+                                ],
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                    },
+                                },
+                            },
+                        });
+
+                        // Create second chart
+                        const ctx2 = document.getElementById("urlVisitsOverTimeChart").getContext("2d");
+                        new Chart(ctx2, {
+                            type: "line",
+                            data: {
+                                labels: Object.keys(visitsOverTime),
+                                datasets: [
+                                    {
+                                        label: "Visits Over Time",
+                                        data: Object.values(visitsOverTime),
+                                        backgroundColor: "rgba(75, 192, 192, 0.2)",
+                                        borderColor: "rgba(75, 192, 192, 1)",
+                                        borderWidth: 1,
+                                        fill: true,
+                                    },
+                                ],
+                            },
+                            options: {
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                    },
+                                },
+                            },
                         });
                     })
                     .catch((error) => console.error("Error:", error));
             });
+
+            function shareOnFacebook(url) {
+                const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+                window.open(fbUrl, "_blank");
+            }
+
+            function shareOnTwitter(url) {
+                const twitterUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}`;
+                window.open(twitterUrl, "_blank");
+            }
         </script>
     </body>
 </html>

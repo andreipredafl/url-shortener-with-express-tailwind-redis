@@ -67,6 +67,8 @@ app.get("/url/:id", async (req, res) => {
     if (!originalUrl) {
         res.status(404).json({ error: "URL not found" });
     } else {
+        const referer = req.headers.referer || "No referer";
+        console.log(`Referer: ${referer}`);
         await redisClient.incr(`visits:${req.params.id}`);
         res.redirect(originalUrl);
     }
