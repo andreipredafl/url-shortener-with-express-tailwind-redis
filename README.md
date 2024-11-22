@@ -1,4 +1,4 @@
-# URL Shortener 🔗
+# URL Shortener web app 🔗
 
 A modern URL shortening service built with Node.js, Express, and Redis. Features a clean UI with real-time statistics and social sharing capabilities.
 
